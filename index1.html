@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>EchoPaw AI Face Guardian</title>
+
+  <!-- TensorFlow.js and Teachable Machine libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #F7F2FF;
+      color: #2B124C;
+      text-align: center;
+      padding: 30px;
+    }
+
+    .card {
+      background: white;
+      max-width: 650px;
+      margin: auto;
+      padding: 25px;
+      border-radius: 20px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    h1 {
+      color: #6A0DAD;
+    }
+
+    input {
+      margin: 15px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    img {
+      max-width: 380px;
+      border-radius: 15px;
+      margin-top: 15px;
+      border: 3px solid #6A0DAD;
+    }
+
+    #result {
+      font-size: 26px;
+      font-weight: bold;
+      margin-top: 20px;
+    }
+
+    #confidence {
+      font-size: 18px;
+      margin-top: 10px;
+    }
+
+    .note {
+      background: #EFE3FF;
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>EchoPaw AI Face Guardian</h1>
+
+    <p>Upload the ESP32-CAM photo to check whether the person is known or unknown.</p>
+
+    <input type="file" id="imageUpload" accept="image/*">
+
+    <br>
+
+    <img id="preview" src="" alt="Uploaded image preview">
+
+    <div id="result">AI Result: Waiting...</div>
+    <div id="confidence"></div>
+
+    <div class="note">
+      Classes used: Known Person / Unknown Person
+    </div>
+  </div>
+
+  <script>
+    // Paste your Teachable Machine model link here
+    const URL = "https://teachablemachine.withgoogle.com/models/l--zhIVhQM/";
+
+    let model;
+
+    async function loadModel() {
+      try {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+
+        model = await tmImage.load(modelURL, metadataURL);
+
+        document.getElementById("result").innerHTML = "AI Result: Model Loaded ";
+        document.getElementById("confidence").innerHTML = "Upload a photo to test.";
+      } catch (error) {
+        document.getElementById("result").innerHTML = "AI Result: Model not loaded ";
+        document.getElementById("confidence").innerHTML = "Check your Teachable Machine model link.";
+        console.log(error);
+      }
+    }
+
+    loadModel();
+
+    document.getElementById("imageUpload").addEventListener("change", async function(event) {
+      const file = event.target.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      const image = document.getElementById("preview");
+      image.src = window.URL.createObjectURL(file);
+
+      image.onload = async function() {
+        if (!model) {
+          document.getElementById("result").innerHTML = "AI Result: Model not ready";
+          return;
+        }
+
+        const prediction = await model.predict(image);
+
+        let bestClass = prediction[0].className;
+        let bestProbability = prediction[0].probability;
+
+        for (let i = 1; i < prediction.length; i++) {
+          if (prediction[i].probability > bestProbability) {
+            bestClass = prediction[i].className;
+            bestProbability = prediction[i].probability;
+          }
+        }
+
+        let percent = (bestProbability * 100).toFixed(2);
+
+        if (bestClass.toLowerCase().includes("known")) {
+          document.getElementById("result").innerHTML = "Known Person Detected";
+        } else {
+          document.getElementById("result").innerHTML = "Unknown Person Detected";
+        }
+
+        document.getElementById("confidence").innerHTML =
+          "Prediction: " + bestClass + "<br>Confidence: " + percent + "%";
+      };
+    });
+  </script>
+</body>
+</html>
